@@ -3,67 +3,23 @@
 import scrapy
 import json
 import logging
-import requests
-import os
 from datetime import datetime
+from moviepy.editor import *
+
 
 
 class DouYinSpider(scrapy.Spider):
+
     name = "douyin"
+
     def start_requests(self):
         self.user_agent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1'
-
         urls = [
-            "https://v.douyin.com/JBAEwxM/",
-            "https://v.douyin.com/JByw4yE/"
-            # "https://v.douyin.com/JBAmdpG/",
-            # "https://v.douyin.com/JBAj51e/",
-            # "https://v.douyin.com/JBAYQM7/",
-            # "https://v.douyin.com/JBAfrvc/",
-            # "https://v.douyin.com/JBAyoro/",
-            # "https://v.douyin.com/JBAPdPq/",
-            # "https://v.douyin.com/JBAAgLe/",
-            # "https://v.douyin.com/JBA26Wj/",
-            # "https://v.douyin.com/JBARQyG/",
-            # "https://v.douyin.com/JBAy4Ek/",
-            # "https://v.douyin.com/JBAMPtc/",
-            # "https://v.douyin.com/JBAj4Te/",
-            # "https://v.douyin.com/JBAAqAB/",
-            # "https://v.douyin.com/JBA6ofU/",
-            # "https://v.douyin.com/JBAfwhw/",
-            # "https://v.douyin.com/JBAaNrC/",
-            # "https://v.douyin.com/JBAavxS/",
-            # "https://v.douyin.com/JBAfhYW/",
-            # "https://v.douyin.com/JBAmHPG/",
-            # "https://v.douyin.com/JBAUABx/",
-            # "https://v.douyin.com/JBAkL21/",
-            # "https://v.douyin.com/JBAU9SH/",
-            # "https://v.douyin.com/JBAAGBo/",
-            # "https://v.douyin.com/JBAeHq9/",
-            # "https://v.douyin.com/JBAewWF/",
-            # "https://v.douyin.com/JBASRQe/",
-            # "https://v.douyin.com/JBAyA3Q/",
-            # "https://v.douyin.com/JBALDj5/",
-            # "https://v.douyin.com/JBArk67/",
-            # "https://v.douyin.com/JBAAqXn/",
-            # "https://v.douyin.com/JBA2FE4/",
-            # "https://v.douyin.com/JBAu29E/",
-            # "https://v.douyin.com/JBAtnNm/",
-            # "https://v.douyin.com/JBAGpB1/",
-            # "https://v.douyin.com/JBACsax/",
-            # "https://v.douyin.com/JBA9u2B/",
-            # "https://v.douyin.com/JBAKS9E/",
-            # "https://v.douyin.com/JBAXKtb/",
-            # "https://v.douyin.com/JBAcXRv/",
-            # "https://v.douyin.com/JBAGH2R/",
-            # "https://v.douyin.com/JBAxheN/",
-            # "https://v.douyin.com/JBAnNfB/"
-           ]
-
+            "https://v.douyin.com/JBPU93H/",
+            "https://v.douyin.com/JBPj6oT/"
+        ]
         meta = {}
-
-        meta['number'] = len(urls)
-
+        meta['url_num'] = len(urls)
         for url in urls:
             logging.info('正在下载: '+url)
             yield scrapy.Request(url=url,
@@ -82,8 +38,6 @@ class DouYinSpider(scrapy.Spider):
         video_id = redirect_url[5]
         logging.info('获取到视频ID:'+video_id)
         meta['video_id'] = video_id
-        
-
 
         # 通过这个接口获取视频信息，其中包括带有水印的链接
         url = 'https://www.iesdouyin.com/web/api/v2/aweme/iteminfo/?item_ids='+video_id
@@ -95,17 +49,15 @@ class DouYinSpider(scrapy.Spider):
                              }
                              )
 
-
     def watermark(self, response):
-       
         # 获取请求结果
         res = response.text
-        list = json.loads(res)
-        vid = list['item_list'][0]['video']['vid']
+        info = json.loads(res)
+        vid = info['item_list'][0]['video']['vid']
         # 自行拼接成无水印的链接
-        videoLink = "https://aweme.snssdk.com/aweme/v1/play/?video_id=" + vid + "&ratio=720p&line=0"
+        video_link = "https://aweme.snssdk.com/aweme/v1/play/?video_id=" + vid + "&ratio=720p&line=0"
 
-        yield scrapy.Request(url=videoLink,
+        yield scrapy.Request(url=video_link,
                              callback=self.download,
                              meta=response.meta,
                              headers={
@@ -113,10 +65,11 @@ class DouYinSpider(scrapy.Spider):
                              }
                              )
 
-
     def download(self, response):
-
         meta = response.meta
+
+        # 要下载的文件数量
+        url_num = numbe = meta['url_num']
         video_id = meta['video_id'].rstrip()
         file_name = video_id+'.mp4'
 
@@ -131,9 +84,38 @@ class DouYinSpider(scrapy.Spider):
             os.makedirs(base_dir)
          
         with open(video_local_path, "wb") as f:
-           f.write(response.body)      
+           f.write(response.body)
 
-        logging.info('下载完成！')          
+        logging.info('下载完成！')
+        # 合成视频
+        self.synthesis(base_dir, url_num)
+
+    def synthesis(self, base_dir, url_num):
+       
+        for curDir, dirs, files in os.walk(base_dir):
+            # 获取该文件夹下的文件数量
+            files_num = len(files)
+            if url_num == files_num:
+
+                # 按文件名排序
+                files.sort()
+                # 定义一个数组
+                video_list = []
+                # 遍历所有文件
+                for file in files:
+                    # 拼接成完整路径
+                    file_path = os.path.join(curDir, file)
+                    # 视频载入内存
+                    video = VideoFileClip(file_path)
+                    # 添加到数组
+                    video_list.append(video)
+                # 拼接视频
+                final_clip = concatenate_videoclips(video_list, method='compose')
+                # 生成目标视频文件
+                final_clip.write_videofile(base_dir+"/synthesis.mp4", codec='mpeg4', verbose=False, audio=True, audio_codec="aac")
+
+
+
 
 
 
