@@ -21,6 +21,11 @@ ROBOTSTXT_OBEY = False
 
 LOG_LEVEL="DEBUG"
 
+
+# 禁用下载大小限制
+DOWNLOAD_WARNSIZE=0
+
+
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 #CONCURRENT_REQUESTS = 32
 

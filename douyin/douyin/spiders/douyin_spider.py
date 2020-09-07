@@ -5,7 +5,8 @@ import json
 import logging
 import requests
 import os
-from scrapy.loader.processors import MapCompose,Join
+from datetime import datetime
+
 
 class DouYinSpider(scrapy.Spider):
     name = "douyin"
@@ -14,6 +15,7 @@ class DouYinSpider(scrapy.Spider):
 
         urls = [
             "https://v.douyin.com/JBAEwxM/",
+            "https://v.douyin.com/JByw4yE/"
             # "https://v.douyin.com/JBAmdpG/",
             # "https://v.douyin.com/JBAj51e/",
             # "https://v.douyin.com/JBAYQM7/",
@@ -57,22 +59,28 @@ class DouYinSpider(scrapy.Spider):
             # "https://v.douyin.com/JBAxheN/",
             # "https://v.douyin.com/JBAnNfB/"
            ]
+
+        meta = {}
+
+        meta['number'] = len(urls)
+
         for url in urls:
             logging.info('正在下载: '+url)
             yield scrapy.Request(url=url,
                                  callback=self.parse,
+                                 meta=meta,
                                  headers={
                                      'user-agent': self.user_agent
                                  }
                                  )
 
     def parse(self, response):
+        meta = response.meta
         redirect_url = response.url
         # 获取视频ID
         redirect_url = redirect_url.split("/")
         video_id = redirect_url[5]
         logging.info('获取到视频ID:'+video_id)
-        meta = {}
         meta['video_id'] = video_id
         
 
@@ -112,12 +120,15 @@ class DouYinSpider(scrapy.Spider):
         video_id = meta['video_id'].rstrip()
         file_name = video_id+'.mp4'
 
-        base_dir = '../download'
+        # 今日日期
+        day_time = datetime.now().strftime('%Y-%m-%d')
+
+        base_dir = '../download/'+day_time
 
         video_local_path = base_dir+'/'+file_name
          
         if not os.path.exists(base_dir):
-            os.mkdir(base_dir)
+            os.makedirs(base_dir)
          
         with open(video_local_path, "wb") as f:
            f.write(response.body)      
