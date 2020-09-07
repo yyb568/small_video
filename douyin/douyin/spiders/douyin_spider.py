@@ -90,13 +90,13 @@ class DouYinSpider(scrapy.Spider):
         # 合成视频
         self.synthesis(base_dir, url_num)
 
-    def synthesis(self, base_dir, url_num):
+    @staticmethod
+    def synthesis(base_dir, url_num):
        
         for curDir, dirs, files in os.walk(base_dir):
             # 获取该文件夹下的文件数量
             files_num = len(files)
             if url_num == files_num:
-
                 # 按文件名排序
                 files.sort()
                 # 定义一个数组
